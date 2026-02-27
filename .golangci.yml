@@ -1,0 +1,23 @@
+version: "2"
+linters:
+  enable:
+    # Not needed right now
+    # - depguard
+    - errcheck
+    - errorlint
+    - exptostd
+    - fatcontext
+    - gocritic
+    - godot
+    - govet
+    - misspell
+    - nilnesserr
+    - nolintlint
+    - perfsprint
+    - predeclared
+    # - revive
+    - sloglint
+    - unconvert
+    - unused
+    - usestdlibvars
+    - whitespace

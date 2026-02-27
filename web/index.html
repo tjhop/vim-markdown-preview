@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Markdown Preview</title>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/_static/css/page.css">
+    <link rel="stylesheet" href="/_static/markdown.css">
+    <link rel="stylesheet" href="/_static/highlight.css">
+    <link rel="stylesheet" href="/_static/css/katex.min.css">
+    <link rel="stylesheet" href="/_static/css/sequence-diagram-min.css">
+
+    <!-- 1. Core markdown parser -->
+    <script src="/_static/js/vendor/markdown-it.min.js"></script>
+
+    <!-- 2. Published markdown-it plugins -->
+    <script src="/_static/js/vendor/markdown-it-emoji.min.js"></script>
+    <script src="/_static/js/vendor/markdown-it-deflist.min.js"></script>
+    <script src="/_static/js/vendor/markdown-it-footnote.min.js"></script>
+    <script src="/_static/js/vendor/markdown-it-task-lists.min.js"></script>
+    <script src="/_static/js/vendor/markdown-it-anchor.umd.js"></script>
+    <script src="/_static/js/vendor/markdown-it-toc-done-right.umd.js"></script>
+
+    <!-- 3. Syntax highlighting -->
+    <script src="/_static/js/vendor/highlight.min.js"></script>
+
+    <!-- 4. Math rendering -->
+    <script src="/_static/js/vendor/katex.min.js"></script>
+
+    <!-- 5. Diagram rendering -->
+    <script src="/_static/js/vendor/mermaid.min.js"></script>
+
+    <!-- 6-8. SVG + sequence diagrams (load order matters: raphael -> snap -> underscore -> sequence) -->
+    <script src="/_static/js/vendor/raphael.min.js"></script>
+    <script src="/_static/js/vendor/snap.svg-min.js"></script>
+    <script src="/_static/js/vendor/underscore-umd-min.js"></script>
+    <script src="/_static/js/vendor/sequence-diagram-min.js"></script>
+
+    <!-- 9. Flowcharts -->
+    <script src="/_static/js/vendor/flowchart.min.js"></script>
+
+    <!-- 10. Graphviz/dot -->
+    <script src="/_static/js/vendor/viz.js"></script>
+    <script src="/_static/js/vendor/full.render.js"></script>
+
+    <!-- 11. Charts -->
+    <script src="/_static/js/vendor/chart.umd.js"></script>
+
+    <!-- 12. PlantUML encoding -->
+    <script src="/_static/js/vendor/plantuml-encoder.min.js"></script>
+
+    <!-- 13. Font loading -->
+    <script src="/_static/js/vendor/webfontloader.js"></script>
+</head>
+<body>
+    <main>
+        <div id="page-ctn">
+            <header id="page-header">
+                <h3 id="filename"></h3>
+            </header>
+            <!-- INITIAL_DATA_PLACEHOLDER -->
+            <section id="content" class="markdown-body">
+                <div class="loading-skeleton" aria-label="Loading content">
+                    <div class="skeleton-line skeleton-title"></div>
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line skeleton-short"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Custom markdown-it plugins (loaded after vendor libs they depend on) -->
+    <script src="/_static/js/plugins/meta.js"></script>
+    <script src="/_static/js/plugins/image.js"></script>
+    <script src="/_static/js/plugins/imsize.js"></script>
+    <script src="/_static/js/plugins/linenumbers.js"></script>
+    <script src="/_static/js/plugins/katex.js"></script>
+    <script src="/_static/js/plugins/block-plantuml.js"></script>
+    <script src="/_static/js/plugins/plantuml.js"></script>
+    <script src="/_static/js/plugins/mermaid.js"></script>
+    <script src="/_static/js/plugins/chart.js"></script>
+    <script src="/_static/js/plugins/diagram.js"></script>
+    <script src="/_static/js/plugins/flowchart.js"></script>
+    <script src="/_static/js/plugins/dot.js"></script>
+    <script src="/_static/js/plugins/scroll.js"></script>
+
+    <!-- Main preview logic (loaded last) -->
+    <script src="/_static/js/preview.js"></script>
+</body>
+</html>

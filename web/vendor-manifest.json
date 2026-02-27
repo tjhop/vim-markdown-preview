@@ -1,0 +1,169 @@
+{
+  "libraries": [
+    {
+      "name": "markdown-it",
+      "version": "14.1.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it@14.1.0/dist/markdown-it.min.js", "dest": "js/vendor/markdown-it.min.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-emoji",
+      "version": "3.0.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-emoji@3.0.0/dist/markdown-it-emoji.min.js", "dest": "js/vendor/markdown-it-emoji.min.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-deflist",
+      "version": "3.0.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-deflist@3.0.0/dist/markdown-it-deflist.min.js", "dest": "js/vendor/markdown-it-deflist.min.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-footnote",
+      "version": "4.0.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-footnote@4.0.0/dist/markdown-it-footnote.min.js", "dest": "js/vendor/markdown-it-footnote.min.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-task-lists",
+      "version": "2.1.1",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-task-lists@2.1.1/dist/markdown-it-task-lists.min.js", "dest": "js/vendor/markdown-it-task-lists.min.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-anchor",
+      "version": "9.2.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-anchor@9.2.0/dist/markdownItAnchor.umd.js", "dest": "js/vendor/markdown-it-anchor.umd.js"}
+      ]
+    },
+    {
+      "name": "markdown-it-toc-done-right",
+      "version": "4.2.0",
+      "files": [
+        {"url": "https://unpkg.com/markdown-it-toc-done-right@4.2.0/dist/markdownItTocDoneRight.umd.js", "dest": "js/vendor/markdown-it-toc-done-right.umd.js"}
+      ]
+    },
+    {
+      "name": "@highlightjs/cdn-assets",
+      "version": "11.11.1",
+      "files": [
+        {"url": "https://unpkg.com/@highlightjs/cdn-assets@11.11.1/highlight.min.js", "dest": "js/vendor/highlight.min.js"},
+        {"url": "https://unpkg.com/@highlightjs/cdn-assets@11.11.1/styles/github.min.css", "dest": "css/highlight-github.min.css"},
+        {"url": "https://unpkg.com/@highlightjs/cdn-assets@11.11.1/styles/github-dark.min.css", "dest": "css/highlight-github-dark.min.css"}
+      ]
+    },
+    {
+      "name": "katex",
+      "version": "0.16.21",
+      "files": [
+        {"url": "https://unpkg.com/katex@0.16.21/dist/katex.min.js", "dest": "js/vendor/katex.min.js"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/katex.min.css", "dest": "css/katex.min.css"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_AMS-Regular.woff2", "dest": "css/fonts/KaTeX_AMS-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Caligraphic-Bold.woff2", "dest": "css/fonts/KaTeX_Caligraphic-Bold.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Caligraphic-Regular.woff2", "dest": "css/fonts/KaTeX_Caligraphic-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Fraktur-Bold.woff2", "dest": "css/fonts/KaTeX_Fraktur-Bold.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Fraktur-Regular.woff2", "dest": "css/fonts/KaTeX_Fraktur-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Main-Bold.woff2", "dest": "css/fonts/KaTeX_Main-Bold.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Main-BoldItalic.woff2", "dest": "css/fonts/KaTeX_Main-BoldItalic.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Main-Italic.woff2", "dest": "css/fonts/KaTeX_Main-Italic.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Main-Regular.woff2", "dest": "css/fonts/KaTeX_Main-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Math-BoldItalic.woff2", "dest": "css/fonts/KaTeX_Math-BoldItalic.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Math-Italic.woff2", "dest": "css/fonts/KaTeX_Math-Italic.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_SansSerif-Bold.woff2", "dest": "css/fonts/KaTeX_SansSerif-Bold.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_SansSerif-Italic.woff2", "dest": "css/fonts/KaTeX_SansSerif-Italic.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_SansSerif-Regular.woff2", "dest": "css/fonts/KaTeX_SansSerif-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Script-Regular.woff2", "dest": "css/fonts/KaTeX_Script-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Size1-Regular.woff2", "dest": "css/fonts/KaTeX_Size1-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Size2-Regular.woff2", "dest": "css/fonts/KaTeX_Size2-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Size3-Regular.woff2", "dest": "css/fonts/KaTeX_Size3-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Size4-Regular.woff2", "dest": "css/fonts/KaTeX_Size4-Regular.woff2"},
+        {"url": "https://unpkg.com/katex@0.16.21/dist/fonts/KaTeX_Typewriter-Regular.woff2", "dest": "css/fonts/KaTeX_Typewriter-Regular.woff2"}
+      ]
+    },
+    {
+      "name": "mermaid",
+      "version": "11.4.1",
+      "files": [
+        {"url": "https://unpkg.com/mermaid@11.4.1/dist/mermaid.min.js", "dest": "js/vendor/mermaid.min.js"}
+      ]
+    },
+    {
+      "name": "chart.js",
+      "version": "4.4.8",
+      "files": [
+        {"url": "https://unpkg.com/chart.js@4.4.8/dist/chart.umd.js", "dest": "js/vendor/chart.umd.js"}
+      ]
+    },
+    {
+      "name": "raphael",
+      "version": "2.3.0",
+      "files": [
+        {"url": "https://unpkg.com/raphael@2.3.0/raphael.min.js", "dest": "js/vendor/raphael.min.js"}
+      ]
+    },
+    {
+      "name": "snapsvg",
+      "version": "0.5.1",
+      "files": [
+        {"url": "https://unpkg.com/snapsvg@0.5.1/dist/snap.svg-min.js", "dest": "js/vendor/snap.svg-min.js"}
+      ]
+    },
+    {
+      "name": "underscore",
+      "version": "1.13.7",
+      "files": [
+        {"url": "https://unpkg.com/underscore@1.13.7/underscore-umd-min.js", "dest": "js/vendor/underscore-umd-min.js"}
+      ]
+    },
+    {
+      "name": "js-sequence-diagrams",
+      "version": "2.0.1",
+      "files": [
+        {"url": "https://raw.githubusercontent.com/bramp/js-sequence-diagrams/master/dist/sequence-diagram-min.js", "dest": "js/vendor/sequence-diagram-min.js"},
+        {"url": "https://raw.githubusercontent.com/bramp/js-sequence-diagrams/master/dist/sequence-diagram-min.css", "dest": "css/sequence-diagram-min.css"}
+      ]
+    },
+    {
+      "name": "flowchart.js",
+      "version": "1.18.0",
+      "files": [
+        {"url": "https://cdnjs.cloudflare.com/ajax/libs/flowchart/1.18.0/flowchart.min.js", "dest": "js/vendor/flowchart.min.js"}
+      ]
+    },
+    {
+      "name": "viz.js",
+      "version": "2.1.2",
+      "files": [
+        {"url": "https://unpkg.com/viz.js@2.1.2/viz.js", "dest": "js/vendor/viz.js"},
+        {"url": "https://unpkg.com/viz.js@2.1.2/full.render.js", "dest": "js/vendor/full.render.js"}
+      ]
+    },
+    {
+      "name": "plantuml-encoder",
+      "version": "1.4.0",
+      "files": [
+        {"url": "https://unpkg.com/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js", "dest": "js/vendor/plantuml-encoder.min.js"}
+      ]
+    },
+    {
+      "name": "webfontloader",
+      "version": "1.6.28",
+      "files": [
+        {"url": "https://unpkg.com/webfontloader@1.6.28/webfontloader.js", "dest": "js/vendor/webfontloader.js"}
+      ]
+    },
+    {
+      "name": "github-markdown-css",
+      "version": "5.8.1",
+      "files": [
+        {"url": "https://unpkg.com/github-markdown-css@5.8.1/github-markdown.css", "dest": "css/github-markdown.css"}
+      ]
+    }
+  ]
+}

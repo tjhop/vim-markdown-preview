@@ -1,0 +1,91 @@
+/* page.css -- Layout and theme support for the markdown preview page. */
+
+:root {
+    --bg-color: #ffffff;
+    --text-color: #24292e;
+    --header-bg: #f6f8fa;
+    --header-border: #e1e4e8;
+}
+
+/* Match system dark theme automatically, just like github-markdown.css does. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #0d1117;
+        --text-color: #c9d1d9;
+        --header-bg: #161b22;
+        --header-border: #30363d;
+    }
+}
+
+/* Explicit override via g:mkdp_theme. */
+[data-theme="dark"] {
+    --bg-color: #0d1117;
+    --text-color: #c9d1d9;
+    --header-bg: #161b22;
+    --header-border: #30363d;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 20px 45px;
+}
+
+#page-header {
+    border-bottom: 1px solid var(--header-border);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+}
+
+#page-header h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Hide the filename heading when no name has been set yet. */
+#page-header h3:empty {
+    display: none;
+}
+
+#content {
+    word-wrap: break-word;
+}
+
+/* Ensure images don't overflow. */
+#content img {
+    max-width: 100%;
+}
+
+/* Loading skeleton shown before content arrives. Automatically replaced
+   when onRefreshContent sets renderEl.innerHTML. */
+.loading-skeleton { padding: 16px 0; }
+.skeleton-line {
+    height: 14px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    background: var(--header-border);
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+.skeleton-title { height: 24px; width: 40%; margin-bottom: 20px; }
+.skeleton-short { width: 60%; }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+/* Content-editable mode styling. */
+#content[contenteditable="true"] {
+    outline: none;
+    border: 1px dashed var(--header-border);
+    padding: 8px;
+    border-radius: 4px;
+}

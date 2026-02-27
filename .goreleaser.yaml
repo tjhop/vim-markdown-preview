@@ -1,0 +1,48 @@
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -X github.com/tjhop/vim-markdown-preview/internal/version.buildTime={{ .CommitDate }}
+      - -X github.com/tjhop/vim-markdown-preview/internal/version.version={{ .Version }}
+      - -X github.com/tjhop/vim-markdown-preview/internal/version.commit={{ .Commit }}
+    binary: vim-markdown-preview
+    main: './cmd/vim-markdown-preview'
+gomod:
+  proxy: false
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+universal_binaries:
+  - replace: true
+archives:
+  - files:
+    - LICENSE*
+    - README*
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^Merge pull request'
+      - '^ci(?:\(\w+\))?\!?:'
+      - '^docs(?:\(\w+\))?\!?:'
+      - '^test(?:\(\w+\))?\!?:'
+      - '^style(?:\(\w+\))?\!?:'
+  groups:
+    - title: "New Features And Changes"
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "Other Changes"
+      order: 999
