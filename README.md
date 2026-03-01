@@ -1,5 +1,11 @@
 # vim-markdown-preview
 
+[![license](https://img.shields.io/github/license/tjhop/vim-markdown-preview)](https://github.com/tjhop/vim-markdown-preview/blob/master/LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tjhop/vim-markdown-preview)](https://goreportcard.com/report/github.com/tjhop/vim-markdown-preview)
+[![golangci-lint](https://github.com/tjhop/vim-markdown-preview/actions/workflows/golangci-lint.yaml/badge.svg)](https://github.com/tjhop/vim-markdown-preview/actions/workflows/golangci-lint.yaml)
+[![Latest Release](https://img.shields.io/github/v/release/tjhop/vim-markdown-preview)](https://github.com/tjhop/vim-markdown-preview/releases/latest)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/tjhop/vim-markdown-preview/total)](https://github.com/tjhop/vim-markdown-preview/releases/latest)
+
 A Go reimplementation of [markdown-preview.nvim](https://github.com/iamcco/markdown-preview.nvim) -- live, synchronized markdown preview in a browser for Vim 8+ and Neovim.
 
 A single statically-compiled binary with every dependency embedded. No Node.js, no Python, no external daemons, no runtime downloads. Just a binary that works.
