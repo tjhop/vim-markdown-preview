@@ -82,29 +82,30 @@
             { global: 'markdownitTaskLists' }
         ]);
 
-        // markdownItAnchor has complex non-trivial options (custom slugify
-        // to prevent DOM clobbering) so it stays inline.
+        // Shared slugify for heading IDs and TOC links. Both
+        // markdown-it-anchor and markdown-it-toc-done-right must use the
+        // same function or TOC hrefs won't match heading IDs.
+        var slugify = function (s) {
+            return s
+                .toLowerCase()
+                .trim()
+                .replace(/[\s]+/g, '-')
+                .replace(/[^\w-]/g, '');
+        };
+
         if (typeof window.markdownItAnchor !== 'undefined') {
             md.use(window.markdownItAnchor, {
                 permalink: window.markdownItAnchor.permalink
                     ? window.markdownItAnchor.permalink.headerLink()
                     : false,
-                // Prefix heading IDs to prevent DOM clobbering: heading
-                // text that matches built-in element properties (e.g.
-                // "children", "item") would shadow those properties on
-                // the parent element without a prefix.
-                slugify: function (s) {
-                    return 'user-content-' + s
-                        .toLowerCase()
-                        .trim()
-                        .replace(/[\s]+/g, '-')
-                        .replace(/[^\w-]/g, '');
-                }
+                slugify: slugify
             });
         }
 
+        // Force slugify so user-supplied toc options can't re-break link matching.
+        var tocOpts = Object.assign({ listType: 'ul' }, options.toc || {}, { slugify: slugify });
         applyPlugins([
-            { global: 'markdownItTocDoneRight', opts: options.toc || { listType: 'ul' } }
+            { global: 'markdownItTocDoneRight', opts: tocOpts }
         ]);
 
         // Custom plugins (project-specific, loaded from js/plugins/).
