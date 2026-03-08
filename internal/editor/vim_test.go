@@ -590,6 +590,31 @@ func TestSetVarNameValidation(t *testing.T) {
 	})
 }
 
+// runFakeVimResponder launches fakeVimResponder in a background goroutine
+// and returns a function that waits for it to finish, then reports any
+// errors on t. Call the returned function after the code under test has
+// completed its RPC round-trip.
+func runFakeVimResponder(t *testing.T, outputR io.Reader, inputW io.Writer, responsePayload json.RawMessage, expectFuncName string, expectCallArgs json.RawMessage) func() {
+	t.Helper()
+
+	fakeErrs := make(chan string, 10)
+	var fakeWg sync.WaitGroup
+	fakeWg.Add(1)
+	go func() {
+		defer fakeWg.Done()
+		fakeVimResponder(outputR, inputW, responsePayload, expectFuncName, expectCallArgs, fakeErrs)
+	}()
+
+	return func() {
+		t.Helper()
+		fakeWg.Wait()
+		close(fakeErrs)
+		for errMsg := range fakeErrs {
+			t.Errorf("fake Vim goroutine: %s", errMsg)
+		}
+	}
+}
+
 // fakeVimResponder reads a single "call" or "expr" request from the output
 // pipe, extracts the message ID, and sends back the given response payload
 // on the input pipe. If expectFuncName is non-empty, verifies that the
@@ -675,24 +700,14 @@ func TestVimClientFetchConfig(t *testing.T) {
 		}
 	}`)
 
-	fakeErrs := make(chan string, 10)
-	var fakeWg sync.WaitGroup
-	fakeWg.Add(1)
-	go func() {
-		defer fakeWg.Done()
-		fakeVimResponder(outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil, fakeErrs)
-	}()
+	collectFakeErrs := runFakeVimResponder(t, outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil)
 
 	cfg, err := client.FetchConfig()
 	if err != nil {
 		t.Fatalf("FetchConfig failed: %v", err)
 	}
 
-	fakeWg.Wait()
-	close(fakeErrs)
-	for errMsg := range fakeErrs {
-		t.Errorf("fake Vim goroutine: %s", errMsg)
-	}
+	collectFakeErrs()
 
 	// Verify parsed config fields.
 	if !cfg.OpenToTheWorld {
@@ -745,24 +760,14 @@ func TestVimClientFetchConfigDefaults(t *testing.T) {
 	// Respond with an empty map to simulate missing/unset variables.
 	configResponse := json.RawMessage(`{}`)
 
-	fakeErrs := make(chan string, 10)
-	var fakeWg sync.WaitGroup
-	fakeWg.Add(1)
-	go func() {
-		defer fakeWg.Done()
-		fakeVimResponder(outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil, fakeErrs)
-	}()
+	collectFakeErrs := runFakeVimResponder(t, outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil)
 
 	cfg, err := client.FetchConfig()
 	if err != nil {
 		t.Fatalf("FetchConfig failed: %v", err)
 	}
 
-	fakeWg.Wait()
-	close(fakeErrs)
-	for errMsg := range fakeErrs {
-		t.Errorf("fake Vim goroutine: %s", errMsg)
-	}
+	collectFakeErrs()
 
 	// Verify that DefaultConfig non-zero values survive when the
 	// response has no corresponding keys. A naive implementation
@@ -803,24 +808,14 @@ func TestVimClientFetchConfigEmptyPageTitle(t *testing.T) {
 	// Simulate Vim sending page_title as an explicit empty string.
 	configResponse := json.RawMessage(`{"page_title": ""}`)
 
-	fakeErrs := make(chan string, 10)
-	var fakeWg sync.WaitGroup
-	fakeWg.Add(1)
-	go func() {
-		defer fakeWg.Done()
-		fakeVimResponder(outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil, fakeErrs)
-	}()
+	collectFakeErrs := runFakeVimResponder(t, outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil)
 
 	cfg, err := client.FetchConfig()
 	if err != nil {
 		t.Fatalf("FetchConfig failed: %v", err)
 	}
 
-	fakeWg.Wait()
-	close(fakeErrs)
-	for errMsg := range fakeErrs {
-		t.Errorf("fake Vim goroutine: %s", errMsg)
-	}
+	collectFakeErrs()
 
 	// Empty string must not overwrite the default template.
 	if cfg.PageTitle != "${name}" {
@@ -828,39 +823,28 @@ func TestVimClientFetchConfigEmptyPageTitle(t *testing.T) {
 	}
 }
 
-// TestVimClientFetchConfigEmptyTheme verifies that an explicit empty theme
-// in the Vim response does not overwrite the DefaultConfig value. Both
-// page_title and theme use the same "non-empty guard before assignment"
-// pattern in FetchConfig; this test is the theme counterpart of
-// TestVimClientFetchConfigEmptyPageTitle.
-func TestVimClientFetchConfigEmptyTheme(t *testing.T) {
+// TestVimClientFetchConfigTheme exercises the non-empty guard before
+// assignment pattern in FetchConfig for the theme field. Sends a non-empty
+// theme and verifies it is applied. The empty-theme case cannot be
+// meaningfully tested because DefaultConfig().Theme is already the zero
+// value, making it impossible to distinguish preserved from overwritten.
+func TestVimClientFetchConfigTheme(t *testing.T) {
 	client, inputW, outputR := startVimTestClient(t)
 
-	// Simulate Vim sending theme as an explicit empty string.
-	configResponse := json.RawMessage(`{"theme": ""}`)
+	// Simulate Vim sending a non-empty theme.
+	configResponse := json.RawMessage(`{"theme": "dark"}`)
 
-	fakeErrs := make(chan string, 10)
-	var fakeWg sync.WaitGroup
-	fakeWg.Add(1)
-	go func() {
-		defer fakeWg.Done()
-		fakeVimResponder(outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil, fakeErrs)
-	}()
+	collectFakeErrs := runFakeVimResponder(t, outputR, inputW, configResponse, "mkdp#rpc#gather_config", nil)
 
 	cfg, err := client.FetchConfig()
 	if err != nil {
 		t.Fatalf("FetchConfig failed: %v", err)
 	}
 
-	fakeWg.Wait()
-	close(fakeErrs)
-	for errMsg := range fakeErrs {
-		t.Errorf("fake Vim goroutine: %s", errMsg)
-	}
+	collectFakeErrs()
 
-	// Empty string must not overwrite the default (zero value for theme).
-	if cfg.Theme != "" {
-		t.Errorf("expected Theme=\"\" (default), got %q", cfg.Theme)
+	if cfg.Theme != "dark" {
+		t.Errorf("expected Theme=%q, got %q", "dark", cfg.Theme)
 	}
 }
 
@@ -881,24 +865,14 @@ func TestVimClientFetchBufferData(t *testing.T) {
 		"name": "test.md"
 	}`)
 
-	fakeErrs := make(chan string, 10)
-	var fakeWg sync.WaitGroup
-	fakeWg.Add(1)
-	go func() {
-		defer fakeWg.Done()
-		fakeVimResponder(outputR, inputW, bufferResponse, "mkdp#rpc#gather_data", json.RawMessage(`[1]`), fakeErrs)
-	}()
+	collectFakeErrs := runFakeVimResponder(t, outputR, inputW, bufferResponse, "mkdp#rpc#gather_data", json.RawMessage(`[1]`))
 
 	data, err := client.FetchBufferData(1)
 	if err != nil {
 		t.Fatalf("FetchBufferData failed: %v", err)
 	}
 
-	fakeWg.Wait()
-	close(fakeErrs)
-	for errMsg := range fakeErrs {
-		t.Errorf("fake Vim goroutine: %s", errMsg)
-	}
+	collectFakeErrs()
 
 	// Verify parsed fields.
 	if len(data.Content) != 3 || data.Content[0] != "# Hello" {
@@ -962,13 +936,7 @@ func TestVimClientFetchBufferDataError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client, inputW, outputR := startVimTestClient(t)
 
-			fakeErrs := make(chan string, 10)
-			var fakeWg sync.WaitGroup
-			fakeWg.Add(1)
-			go func() {
-				defer fakeWg.Done()
-				fakeVimResponder(outputR, inputW, tt.response, "mkdp#rpc#gather_data", json.RawMessage(`[1]`), fakeErrs)
-			}()
+			collectFakeErrs := runFakeVimResponder(t, outputR, inputW, tt.response, "mkdp#rpc#gather_data", json.RawMessage(`[1]`))
 
 			data, err := client.FetchBufferData(1)
 			if err == nil {
@@ -980,11 +948,7 @@ func TestVimClientFetchBufferDataError(t *testing.T) {
 				t.Errorf("expected nil data on error, got %+v", data)
 			}
 
-			fakeWg.Wait()
-			close(fakeErrs)
-			for errMsg := range fakeErrs {
-				t.Errorf("fake Vim goroutine: %s", errMsg)
-			}
+			collectFakeErrs()
 		})
 	}
 }

@@ -845,7 +845,7 @@ func TestWebSocketBufnrOutOfRange(t *testing.T) {
 	srv := startTestServer(t)
 	addr := srv.Addr().String()
 
-	for _, tc := range []struct {
+	for _, tt := range []struct {
 		name  string
 		bufnr string
 	}{
@@ -853,15 +853,15 @@ func TestWebSocketBufnrOutOfRange(t *testing.T) {
 		{"negative", "-1"},
 		{"exceeds upper bound", "1048577"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			resp, err := http.Get("http://" + addr + "/ws?bufnr=" + tc.bufnr)
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := http.Get("http://" + addr + "/ws?bufnr=" + tt.bufnr)
 			if err != nil {
 				t.Fatalf("request failed: %v", err)
 			}
 			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusBadRequest {
-				t.Errorf("expected status 400 for bufnr=%s, got %d", tc.bufnr, resp.StatusCode)
+				t.Errorf("expected status 400 for bufnr=%s, got %d", tt.bufnr, resp.StatusCode)
 			}
 		})
 	}
@@ -900,23 +900,26 @@ func TestWebSocketLocalhostOriginsAccepted(t *testing.T) {
 // TestWebSocketOpenIPv6OriginAccepted verifies that a server configured with
 // OpenIP="::1" accepts WebSocket connections whose Origin header contains the
 // matching IPv6 address and rejects connections from a different address. This
-// exercises the strings.Contains(ip, ":") → "\\[" + ip + "\\]" code path in
-// handleWebSocket. httptest.NewServer is used instead of srv.Start so the
-// test does not depend on the host having a bindable IPv6 interface (the
-// listen address is irrelevant -- origin checking is pure string matching).
+// exercises the strings.Contains(ip, ":") bracket-escape code path in
+// websocketAcceptOptions. httptest.NewServer is used because "::1" is not a
+// valid net.Listen address without brackets. The test registers routes via
+// registerRoutes to exercise the production mux rather than calling
+// handleWebSocket directly.
 func TestWebSocketOpenIPv6OriginAccepted(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.OpenToTheWorld = true
 	cfg.OpenIP = "::1"
 	srv := New(cfg, discardLogger())
+
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
+	testSrv := httptest.NewServer(mux)
 	t.Cleanup(func() {
+		testSrv.Close()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	})
-
-	testSrv := httptest.NewServer(http.HandlerFunc(srv.handleWebSocket))
-	defer testSrv.Close()
 	addr := testSrv.Listener.Addr().String()
 
 	// Origin: http://[::1] must be accepted -- exercises the bracket-escape path.
@@ -966,14 +969,14 @@ func TestIPv6OriginPatternEscaping(t *testing.T) {
 		{`\[::1\]`, "::1", false},   // unbracketed must not match
 		{`\[::1\]`, "[::2]", false}, // different address must not match
 	}
-	for _, tc := range cases {
-		t.Run(tc.pattern+"/"+tc.host, func(t *testing.T) {
-			got, err := path.Match(tc.pattern, tc.host)
+	for _, tt := range cases {
+		t.Run(tt.pattern+"/"+tt.host, func(t *testing.T) {
+			got, err := path.Match(tt.pattern, tt.host)
 			if err != nil {
-				t.Fatalf("path.Match(%q, %q) error: %v", tc.pattern, tc.host, err)
+				t.Fatalf("path.Match(%q, %q) error: %v", tt.pattern, tt.host, err)
 			}
-			if got != tc.want {
-				t.Errorf("path.Match(%q, %q) = %v, want %v", tc.pattern, tc.host, got, tc.want)
+			if got != tt.want {
+				t.Errorf("path.Match(%q, %q) = %v, want %v", tt.pattern, tt.host, got, tt.want)
 			}
 		})
 	}

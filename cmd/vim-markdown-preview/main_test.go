@@ -33,16 +33,16 @@ type refreshMessage struct {
 }
 
 // startStandaloneServer creates and starts a standalone server on a random port.
-// The optional modify callback is applied to the config before creating the
+// The modify callback (may be nil) is applied to the config before creating the
 // server, matching the startTestServerWithConfig pattern in server_test.go.
-func startStandaloneServer(t *testing.T, modify ...func(*config.Config)) (*server.Server, config.Config) {
+func startStandaloneServer(t *testing.T, modify func(*config.Config)) (*server.Server, config.Config) {
 	t.Helper()
 
 	cfg := config.DefaultConfig()
 	cfg.Port = 0
 	cfg.Standalone = true
-	for _, fn := range modify {
-		fn(&cfg)
+	if modify != nil {
+		modify(&cfg)
 	}
 
 	srv := server.New(cfg, discardLogger())
@@ -175,11 +175,8 @@ func TestBroadcastFile(t *testing.T) {
 		if msg.Data.WinLine != 1 {
 			t.Errorf("expected WinLine=1, got %d", msg.Data.WinLine)
 		}
-		// Pin to the literal value (config.defaultWinHeight, config/config.go:122)
-		// so a regression that changes the constant is caught rather than
-		// silently accepted.
-		if msg.Data.WinHeight != 40 {
-			t.Errorf("expected WinHeight=40 (config.defaultWinHeight), got %d", msg.Data.WinHeight)
+		if msg.Data.WinHeight != config.DefaultWinHeight {
+			t.Errorf("expected WinHeight=%d (config.DefaultWinHeight), got %d", config.DefaultWinHeight, msg.Data.WinHeight)
 		}
 
 		// Options are forwarded from DefaultConfig().PreviewOptions.
@@ -201,7 +198,7 @@ func TestBroadcastFile(t *testing.T) {
 		// verify that the template string passes through to the broadcast
 		// unchanged. The browser is responsible for substituting ${name}
 		// with the buffer basename; the Go layer must not alter it.
-		srv, cfg := startStandaloneServer(t)
+		srv, cfg := startStandaloneServer(t, nil)
 
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
@@ -229,7 +226,7 @@ func TestBroadcastFile(t *testing.T) {
 }
 
 func TestWatchFileDetectsChange(t *testing.T) {
-	srv, cfg := startStandaloneServer(t)
+	srv, cfg := startStandaloneServer(t, nil)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -312,13 +309,13 @@ func TestWatchFileSkipsOversizeFile(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "oversize.md")
 
-	// Write maxFileSize+1 bytes so the watcher's size check triggers.
-	content := make([]byte, maxFileSize+1)
+	// Write server.MaxContentSize+1 bytes so the watcher's size check triggers.
+	content := make([]byte, server.MaxContentSize+1)
 	if err := os.WriteFile(file, content, 0o644); err != nil {
 		t.Fatalf("failed to write oversize file: %v", err)
 	}
 
-	srv, cfg := startStandaloneServer(t)
+	srv, cfg := startStandaloneServer(t, nil)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -414,7 +411,7 @@ func TestWatchFileExitsOnDeletion(t *testing.T) {
 	}
 	initialMod := info.ModTime()
 
-	srv, cfg := startStandaloneServer(t)
+	srv, cfg := startStandaloneServer(t, nil)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()

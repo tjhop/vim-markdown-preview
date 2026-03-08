@@ -35,11 +35,6 @@ const shutdownTimeout = 10 * time.Second
 // for a single file, and 200ms latency is imperceptible for preview.
 const fileWatchInterval = 200 * time.Millisecond
 
-// maxFileSize is the maximum file size that the standalone file-watch path
-// will read and broadcast. Matches the reload endpoint's maxReloadBodySize
-// (in routes.go) so both content ingestion paths have the same limit.
-const maxFileSize = 1 << 20 // 1 MB
-
 // previewURLFmt is the format string for the browser preview URL.
 // Arguments: port (int), buffer number (int).
 const previewURLFmt = "http://127.0.0.1:%d/page/%d"
@@ -111,24 +106,23 @@ func runStandalone(logger *slog.Logger, port int, file string) {
 	// stat error, triggering premature shutdown while the browser was
 	// showing valid content.
 	var initialMod time.Time
+	// fatalShutdown logs an error, shuts down the server, and exits.
+	fatalShutdown := func(msg string, args ...any) {
+		logger.Error(msg, args...)
+		if shutdownErr := srv.Shutdown(context.Background()); shutdownErr != nil {
+			logger.Error("shutdown error", "err", shutdownErr)
+		}
+		os.Exit(1)
+	}
+
 	if file != "" {
 		info, err := os.Stat(file)
 		if err != nil {
-			logger.Error("failed to stat file", "file", file, "err", err)
-			_ = srv.Shutdown(context.Background())
-			os.Exit(1)
+			fatalShutdown("failed to stat file", "file", file, "err", err)
 		}
-		if info.Size() > maxFileSize {
-			logger.Error("file too large", "file", file, "size", info.Size(), "max", maxFileSize)
-			_ = srv.Shutdown(context.Background())
-			os.Exit(1)
-		}
-
-		content, err := os.ReadFile(file)
+		content, err := readFileWithLimit(file, server.MaxContentSize)
 		if err != nil {
-			logger.Error("failed to read file", "file", file, "err", err)
-			_ = srv.Shutdown(context.Background())
-			os.Exit(1)
+			fatalShutdown("failed to read file", "file", file, "err", err)
 		}
 		broadcastFile(srv, cfg, file, content)
 		initialMod = info.ModTime()
@@ -199,12 +193,7 @@ func watchFile(ctx context.Context, logger *slog.Logger, srv *server.Server, cfg
 			}
 			lastMod = mod
 
-			if info.Size() > maxFileSize {
-				logger.Warn("file too large, skipping broadcast", "file", file, "size", info.Size(), "max", maxFileSize)
-				continue
-			}
-
-			content, err := os.ReadFile(file)
+			content, err := readFileWithLimit(file, server.MaxContentSize)
 			if err != nil {
 				logger.Warn("failed to read changed file", "file", file, "err", err)
 				continue
@@ -432,6 +421,27 @@ func makeNotificationHandler(
 			}
 		},
 	}
+}
+
+// readFileWithLimit reads a file, returning an error if it exceeds maxSize.
+// It stats first to reject obviously large files, then re-checks after
+// reading to handle TOCTOU races where the file grows between stat and read.
+func readFileWithLimit(path string, maxSize int64) ([]byte, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > maxSize {
+		return nil, fmt.Errorf("file size %d exceeds limit %d", info.Size(), maxSize)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxSize {
+		return nil, fmt.Errorf("file size %d exceeds limit %d after read", len(data), maxSize)
+	}
+	return data, nil
 }
 
 // portFromAddr extracts the port number from a net.Addr.

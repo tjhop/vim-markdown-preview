@@ -151,8 +151,12 @@ func mapToPreviewOptions(m map[string]any, logger *slog.Logger) config.PreviewOp
 	applyMapField("uml", &opts.UML)
 	applyMapField("maid", &opts.Mermaid)
 	applyIntField("disable_sync_scroll", &opts.DisableSyncScroll)
-	if v, ok := m[config.OptKeySyncScrollType].(string); ok {
-		opts.SyncScrollType = v
+	if v, ok := m[config.OptKeySyncScrollType]; ok {
+		if s, ok := v.(string); ok {
+			opts.SyncScrollType = s
+		} else {
+			logger.Warn("config decode failed", "key", config.OptKeySyncScrollType, "err", fmt.Errorf("expected string, got %T", v))
+		}
 	}
 	applyIntField(config.OptKeyHideYAMLMeta, &opts.HideYAMLMeta)
 	applyMapField("sequence_diagrams", &opts.SequenceDiagrams)

@@ -156,18 +156,14 @@ func TestNeovimHandleCloseAllPages(t *testing.T) {
 }
 
 // TestNeovimHandlerNilCallbacks verifies that calling each handler method
-// with nil callbacks does not panic and does not invoke any callback.
-// Uses atomic counters (matching the TestNeovimHandlerBadArgs pattern)
-// to confirm the nil-callback guard fires rather than relying solely on
-// the absence of a panic.
+// on a zero-value NeovimClient (all callbacks nil) does not panic. The
+// handlers check for nil callbacks before invoking them, and this test
+// exercises that guard with well-formed arguments.
 func TestNeovimHandlerNilCallbacks(t *testing.T) {
-	var refreshCalled, closeCalled, openCalled, closeAllCalled atomic.Int32
-
 	// c is a zero-value NeovimClient: all callbacks are nil.
 	c := &NeovimClient{logger: discardLogger()}
 
-	// Exercise the nil-callback client: should not panic, should not
-	// trigger any counter increments.
+	// Exercise the nil-callback client: should not panic.
 	t.Run("refresh_content", func(t *testing.T) {
 		c.handleRefreshContent(map[string]any{"bufnr": int64(1)})
 	})
@@ -180,21 +176,6 @@ func TestNeovimHandlerNilCallbacks(t *testing.T) {
 	t.Run("open_browser", func(t *testing.T) {
 		c.handleOpenBrowser(map[string]any{"bufnr": int64(1)})
 	})
-
-	// Assert that nil callbacks did not dispatch (proves the nil guard
-	// fired, not just that no panic occurred).
-	if got := refreshCalled.Load(); got != 0 {
-		t.Errorf("nil RefreshContent callback: called %d times, want 0", got)
-	}
-	if got := closeCalled.Load(); got != 0 {
-		t.Errorf("nil ClosePage callback: called %d times, want 0", got)
-	}
-	if got := closeAllCalled.Load(); got != 0 {
-		t.Errorf("nil CloseAllPages callback: called %d times, want 0", got)
-	}
-	if got := openCalled.Load(); got != 0 {
-		t.Errorf("nil OpenBrowser callback: called %d times, want 0", got)
-	}
 }
 
 // TestNeovimHandlerBadArgs verifies that handlers with malformed arguments
@@ -303,7 +284,7 @@ func startServe(t *testing.T, client *NeovimClient) {
 		select {
 		case err := <-errCh:
 			if err != nil {
-				t.Logf("Serve exited with: %v", err)
+				t.Errorf("Serve exited with unexpected error: %v", err)
 			}
 		case <-time.After(5 * time.Second):
 			t.Error("Serve did not exit within 5 seconds after Close")

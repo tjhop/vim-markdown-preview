@@ -241,6 +241,28 @@ func TestMapToPreviewOptions(t *testing.T) {
 		}
 	})
 
+	t.Run("wrong type for sync_scroll_type uses default and logs warning", func(t *testing.T) {
+		// When sync_scroll_type receives a non-string value, the type
+		// assertion fails, the field keeps its zero value, and a
+		// warning is logged.
+		m := map[string]any{
+			"sync_scroll_type": int(42),
+		}
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		opts := mapToPreviewOptions(m, logger)
+
+		if opts.SyncScrollType != "" {
+			t.Errorf("SyncScrollType: got %q, want empty string (wrong type fallback)", opts.SyncScrollType)
+		}
+
+		logged := buf.String()
+		if !strings.Contains(logged, "sync_scroll_type") {
+			t.Errorf("expected warning log for key %q, got: %s", "sync_scroll_type", logged)
+		}
+	})
+
 	t.Run("wrong type for map field uses nil and logs warning", func(t *testing.T) {
 		// When a map field receives a non-map value, the type assertion
 		// fails, the field stays nil, and a warning is logged.

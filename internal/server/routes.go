@@ -99,11 +99,15 @@ func (s *Server) handlePage() http.Handler {
 	indexTemplate, err := web.Assets.ReadFile("index.html")
 	if err != nil {
 		s.logger.Error("failed to read embedded index.html", "err", err)
-		indexTemplate = []byte("internal error: index.html missing")
 	}
 	placeholder := []byte("<!-- INITIAL_DATA_PLACEHOLDER -->")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if indexTemplate == nil {
+			http.Error(w, "internal error: index.html missing", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		setSecurityHeaders(w)
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
@@ -114,13 +118,17 @@ func (s *Server) handlePage() http.Handler {
 		// and = -- none of which is the " character that would break
 		// the attribute value. If no cached content exists, the
 		// placeholder is simply removed and the loading skeleton shows.
-		var replacement []byte
 		bufnrStr := r.PathValue("bufnr")
-		if bufnr, err := strconv.Atoi(bufnrStr); err == nil && bufnr >= 1 {
-			if cached := s.wsClients.getLastMessage(bufnr); cached != nil {
-				encoded := base64.StdEncoding.EncodeToString(cached)
-				replacement = []byte(`<div id="initial-data" data-payload="` + encoded + `" hidden></div>`)
-			}
+		bufnr, err := strconv.Atoi(bufnrStr)
+		if err != nil || bufnr < 1 || bufnr > maxBufnr {
+			http.Error(w, "invalid buffer number", http.StatusBadRequest)
+			return
+		}
+
+		var replacement []byte
+		if cached := s.wsClients.getLastMessage(bufnr); cached != nil {
+			encoded := base64.StdEncoding.EncodeToString(cached)
+			replacement = []byte(`<div id="initial-data" data-payload="` + encoded + `" hidden></div>`)
 		}
 
 		page := bytes.Replace(indexTemplate, placeholder, replacement, 1)
@@ -158,9 +166,12 @@ func (s *Server) handleCustomCSS(label, customPath, fallbackPath string) http.Ha
 		if err != nil {
 			s.logger.Warn("custom CSS path invalid, using fallback",
 				"label", label, "path", customPath, "err", err)
-		} else if _, err := os.Stat(absPath); err != nil {
+		} else if info, err := os.Stat(absPath); err != nil {
 			s.logger.Warn("custom CSS file not found, using fallback",
 				"label", label, "path", customPath, "err", err)
+		} else if info.IsDir() {
+			s.logger.Warn("custom CSS path is a directory, using fallback",
+				"label", label, "path", customPath)
 		} else {
 			resolvedPath = absPath
 		}
@@ -179,13 +190,10 @@ func (s *Server) handleCustomCSS(label, customPath, fallbackPath string) http.Ha
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setSecurityHeaders(w)
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+
 		if resolvedPath != "" {
-			setSecurityHeaders(w)
-			// Set Content-Type before ServeFile so it is applied
-			// regardless of the file's extension (e.g., .scss, .txt,
-			// or no extension). The embedded fallback path sets this
-			// header explicitly; keep behavior consistent.
-			w.Header().Set("Content-Type", "text/css; charset=utf-8")
 			http.ServeFile(w, r, resolvedPath)
 			return
 		}
@@ -194,8 +202,6 @@ func (s *Server) handleCustomCSS(label, customPath, fallbackPath string) http.Ha
 			http.Error(w, "CSS not found", http.StatusInternalServerError)
 			return
 		}
-		setSecurityHeaders(w)
-		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		_, _ = w.Write(fallbackData)
 	})
 }
@@ -381,9 +387,10 @@ This is a **test** of the standalone preview mode.
 
 ` + "```go\nfunc main() {\n    fmt.Println(\"Hello, world!\")\n}\n```\n"
 
-// maxReloadBodySize is the maximum request body size for the standalone
-// reload endpoint. Limits memory consumption from untrusted POST bodies.
-const maxReloadBodySize = 1 << 20 // 1 MB
+// MaxContentSize is the maximum size for content ingested via standalone
+// file-watch or the reload endpoint. Exported so the standalone file-watch
+// path in cmd/vim-markdown-preview can reference the same limit.
+const MaxContentSize int64 = 1 << 20 // 1 MB
 
 // handleReload is a standalone-mode endpoint that broadcasts markdown
 // content to all clients for buffer 1. Accepts optional JSON body
@@ -406,7 +413,7 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {
 	// by the stdlib). MaxBytesReader caps the body at 1 MB; a request
 	// with no body causes Decode to return io.EOF, which is treated as
 	// "no override" and keeps the default content.
-	r.Body = http.MaxBytesReader(w, r.Body, maxReloadBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, MaxContentSize)
 
 	var payload struct {
 		Content string `json:"content"`
@@ -447,5 +454,6 @@ func (s *Server) handleReload(w http.ResponseWriter, r *http.Request) {
 	// bounds the total duration.
 	s.BroadcastToBuffer(StandaloneBufferNr, editor.EventRefreshContent, data)
 
-	_, _ = w.Write([]byte(`{"ok": true}`))
+	const reloadOKResponse = `{"ok": true}`
+	_, _ = w.Write([]byte(reloadOKResponse))
 }

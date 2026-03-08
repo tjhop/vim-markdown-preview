@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -141,14 +142,25 @@ func (cm *clientManager) broadcastOnly(timeout time.Duration, bufnr int, msg wsM
 	return cm.sendToBuffer(timeout, bufnr, msg, false)
 }
 
+// marshalMessage marshals a WebSocket message into JSON. Returns the
+// marshaled bytes and true on success. On failure, logs the error and
+// returns nil, false.
+func marshalMessage(logger *slog.Logger, msg wsMessage) ([]byte, bool) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		logger.Error("failed to marshal ws message", "err", err)
+		return nil, false
+	}
+	return data, true
+}
+
 // sendToBuffer is the shared implementation for broadcastAndStore and
 // broadcastOnly. It marshals msg, snapshots clients for bufnr under
 // the write lock, and writes to all targets. When persist is true, the
 // marshaled data is stored as the replay message for late-connecting clients.
 func (cm *clientManager) sendToBuffer(timeout time.Duration, bufnr int, msg wsMessage, persist bool) (evicted bool, hasClients bool) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		cm.logger.Error("failed to marshal ws message", "err", err)
+	data, ok := marshalMessage(cm.logger, msg)
+	if !ok {
 		return false, false
 	}
 	cm.mu.Lock()
@@ -169,19 +181,14 @@ func (cm *clientManager) sendToBuffer(timeout time.Duration, bufnr int, msg wsMe
 // unnecessary (and harmless if stale -- the next refresh_content broadcast
 // from sendToBuffer overwrites lastMessage).
 func (cm *clientManager) broadcastAll(timeout time.Duration, msg wsMessage) (evicted bool, hasClients bool) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		cm.logger.Error("failed to marshal ws message", "err", err)
+	data, ok := marshalMessage(cm.logger, msg)
+	if !ok {
 		return false, false
 	}
 
 	// Snapshot all clients under read lock, then release before writing.
 	cm.mu.RLock()
-	var total int
-	for _, clients := range cm.clients {
-		total += len(clients)
-	}
-	targets := make([]clientTarget, 0, total)
+	var targets []clientTarget
 	for bufnr, clients := range cm.clients {
 		for _, c := range clients {
 			targets = append(targets, clientTarget{client: c, bufnr: bufnr})
@@ -223,17 +230,17 @@ func (cm *clientManager) writeAndCleanup(targets []clientTarget, data []byte, ti
 	}
 
 	cm.mu.Lock()
-	for _, f := range failed {
-		cm.removeLocked(f.bufnr, f.client)
+	for _, target := range failed {
+		cm.removeLocked(target.bufnr, target.client)
 	}
 	hasClients = len(cm.clients) > 0
 	cm.mu.Unlock()
 
 	// Close connections outside the lock to avoid holding cm.mu during
 	// I/O, matching the pattern in closeAll.
-	for _, f := range failed {
-		_ = f.client.conn.CloseNow()
-		cm.logger.Info("removed failed client", "bufnr", f.bufnr)
+	for _, target := range failed {
+		_ = target.client.conn.CloseNow()
+		cm.logger.Info("removed failed client", "bufnr", target.bufnr)
 	}
 
 	return true, hasClients
@@ -291,25 +298,13 @@ func (cm *clientManager) closeAll() {
 	cm.logger.Info("closed all WebSocket clients", "count", len(allClients))
 }
 
-// handleWebSocket upgrades an HTTP connection to WebSocket and manages
-// the client lifecycle. The buffer number is taken from the ?bufnr query param.
-func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	bufnrStr := r.URL.Query().Get("bufnr")
-	bufnr, err := strconv.Atoi(bufnrStr)
-	if err != nil {
-		http.Error(w, "invalid bufnr", http.StatusBadRequest)
-		return
-	}
-	if bufnr < 1 || bufnr > maxBufnr {
-		http.Error(w, "bufnr out of range", http.StatusBadRequest)
-		return
-	}
-
-	// Origin check: OpenToTheWorld restricts origins to localhost variants
-	// (plus OpenIP for reverse-proxy setups); localhost-only mode skips
-	// verification entirely since network access is already restricted.
-	// IPv6 brackets require "\\[" escaping because coder/websocket uses
-	// path.Match against url.Parse(origin).Host, not r.Host.
+// websocketAcceptOptions builds the WebSocket accept options based on the
+// server configuration. OpenToTheWorld restricts origins to localhost variants
+// plus the configured OpenIP and the request's Host header; localhost-only
+// mode skips verification entirely since network access is already restricted.
+// IPv6 brackets require "\\[" escaping because coder/websocket uses
+// path.Match against url.Parse(origin).Host, not r.Host.
+func (s *Server) websocketAcceptOptions(r *http.Request) *websocket.AcceptOptions {
 	opts := &websocket.AcceptOptions{}
 	if s.cfg.OpenToTheWorld {
 		opts.OriginPatterns = []string{
@@ -325,10 +320,41 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				opts.OriginPatterns = append(opts.OriginPatterns, ip, ip+":*")
 			}
 		}
+		// Also allow the request's Host header so users accessing via
+		// a hostname (e.g., http://myhost:8080) can establish WebSocket
+		// connections without needing to set OpenIP explicitly.
+		if host := r.Host; host != "" {
+			// Strip port if present so the bare hostname matches too.
+			// net.SplitHostPort handles IPv6 bracket notation correctly
+			// (e.g. "[::1]:8080" -> "::1"), unlike strings.LastIndex
+			// which would corrupt bare IPv6 addresses without brackets.
+			bareHost := host
+			if hostname, _, err := net.SplitHostPort(bareHost); err == nil {
+				bareHost = hostname
+			}
+			opts.OriginPatterns = append(opts.OriginPatterns, bareHost, bareHost+":*")
+		}
 	} else {
 		opts.InsecureSkipVerify = true
 	}
-	conn, err := websocket.Accept(w, r, opts)
+	return opts
+}
+
+// handleWebSocket upgrades an HTTP connection to WebSocket and manages
+// the client lifecycle. The buffer number is taken from the ?bufnr query param.
+func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	bufnrStr := r.URL.Query().Get("bufnr")
+	bufnr, err := strconv.Atoi(bufnrStr)
+	if err != nil {
+		http.Error(w, "invalid bufnr", http.StatusBadRequest)
+		return
+	}
+	if bufnr < 1 || bufnr > maxBufnr {
+		http.Error(w, "bufnr out of range", http.StatusBadRequest)
+		return
+	}
+
+	conn, err := websocket.Accept(w, r, s.websocketAcceptOptions(r))
 	if err != nil {
 		s.logger.Error("websocket accept failed", "err", err)
 		return

@@ -1,7 +1,8 @@
-" autoload/health/mkdp.vim -- Vim 8 :healthcheck fallback.
-" Neovim 0.8+ uses lua/mkdp/health.lua (vim.health API) instead.
-" This file is retained for Vim 8 compatibility only; on Neovim the
-" lua/ module takes precedence and this function is never called.
+" autoload/health/mkdp.vim -- :checkhealth provider.
+" Uses the legacy health#report_* API which works on Neovim < 0.8 and
+" with the rhysd/vim-healthcheck polyfill on Vim 8. On Neovim 0.8+ the
+" legacy API still works (shimmed internally) so this file is functional
+" across all supported editor versions.
 
 function! health#mkdp#check() abort
   " health#report_* functions exist in Neovim and in the optional

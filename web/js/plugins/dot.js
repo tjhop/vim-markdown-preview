@@ -24,23 +24,22 @@
         };
     }
 
-    // Lazy singleton for the Viz.js v2.x instance. Created once on first
-    // renderDot call and reused across subsequent renders to avoid the
-    // overhead of repeated construction.
+    // Lazy singleton for the Viz.js v2.x instance. Three states:
+    //   null  = not yet attempted (first call will try construction)
+    //   object = successfully created Viz instance
+    //   false = construction failed (Viz.js v1.x fallback path)
     var vizInstance = null;
-    var vizInitialized = false;
 
     function getVizInstance() {
-        if (vizInitialized) return vizInstance;
-        vizInitialized = true;
+        if (vizInstance !== null) return vizInstance || null;
         try {
             vizInstance = new Viz({ Module: typeof Module !== 'undefined' ? Module : undefined,
                                     render: typeof render !== 'undefined' ? render : undefined });
         } catch (_) {
             // Viz.js v1.x fallback: Viz is a function directly.
-            vizInstance = null;
+            vizInstance = false;
         }
-        return vizInstance;
+        return vizInstance || null;
     }
 
     function renderDot() {
@@ -67,7 +66,6 @@
                         // A render error corrupts the Viz.js v2 instance;
                         // reset the singleton so the next call recreates it.
                         vizInstance = null;
-                        vizInitialized = false;
                     });
                 } else if (typeof Viz === 'function') {
                     // v1.x sync API.

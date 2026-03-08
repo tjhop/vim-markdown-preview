@@ -116,11 +116,12 @@ const (
 const (
 	defaultSyncScrollType = "middle"
 	defaultHideYAMLMeta   = 1
-	// defaultWinHeight is a placeholder terminal height used in standalone
+	// DefaultWinHeight is a placeholder terminal height used in standalone
 	// mode where there is no real editor window. The value (40 lines)
 	// represents a typical terminal height and keeps the browser's scroll sync
-	// and rendering logic from treating the viewport as empty.
-	defaultWinHeight = 40
+	// and rendering logic from treating the viewport as empty. Exported so
+	// tests can reference it instead of hardcoding the value.
+	DefaultWinHeight = 40
 )
 
 // DefaultConfig returns a Config with defaults matching the original plugin.
@@ -147,7 +148,7 @@ func NewStandaloneRefreshData(bufnr int, name, pageTitle, theme string, lines []
 		// bufnum is the standalone buffer number; lnum=1 places the virtual cursor at the first line.
 		Cursor:    []int{bufnr, 1, 0, 0},
 		WinLine:   1,
-		WinHeight: defaultWinHeight,
+		WinHeight: DefaultWinHeight,
 		Options: map[string]any{
 			OptKeySyncScrollType: defaultSyncScrollType,
 			OptKeyHideYAMLMeta:   defaultHideYAMLMeta,

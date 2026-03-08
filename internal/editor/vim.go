@@ -330,14 +330,14 @@ type vimConfigDecoder struct {
 
 // decodeInt returns the integer value for key, or (0, false) if the key is
 // absent or cannot be unmarshaled as an int.
-func (d *vimConfigDecoder) decodeInt(key string) (int, bool) {
-	v, ok := d.m[key]
+func (vcd *vimConfigDecoder) decodeInt(key string) (int, bool) {
+	v, ok := vcd.m[key]
 	if !ok {
 		return 0, false
 	}
 	var n int
 	if err := json.Unmarshal(v, &n); err != nil {
-		d.logger.Warn("config decode failed", "key", key, "err", err)
+		vcd.logger.Warn("config decode failed", "key", key, "err", err)
 		return 0, false
 	}
 	return n, true
@@ -345,14 +345,14 @@ func (d *vimConfigDecoder) decodeInt(key string) (int, bool) {
 
 // decodeStr returns the string value for key, or ("", false) if the key is
 // absent or cannot be unmarshaled as a string.
-func (d *vimConfigDecoder) decodeStr(key string) (string, bool) {
-	v, ok := d.m[key]
+func (vcd *vimConfigDecoder) decodeStr(key string) (string, bool) {
+	v, ok := vcd.m[key]
 	if !ok {
 		return "", false
 	}
 	var s string
 	if err := json.Unmarshal(v, &s); err != nil {
-		d.logger.Warn("config decode failed", "key", key, "err", err)
+		vcd.logger.Warn("config decode failed", "key", key, "err", err)
 		return "", false
 	}
 	return s, true
@@ -361,33 +361,33 @@ func (d *vimConfigDecoder) decodeStr(key string) (string, bool) {
 // decodePreviewOptions returns parsed PreviewOptions for key, or
 // (PreviewOptions{}, false) if the key is absent, decodes to nil, or cannot
 // be unmarshaled as a JSON object.
-func (d *vimConfigDecoder) decodePreviewOptions(key string) (config.PreviewOptions, bool) {
-	v, ok := d.m[key]
+func (vcd *vimConfigDecoder) decodePreviewOptions(key string) (config.PreviewOptions, bool) {
+	v, ok := vcd.m[key]
 	if !ok {
 		return config.PreviewOptions{}, false
 	}
 	var opts map[string]any
 	if err := json.Unmarshal(v, &opts); err != nil {
-		d.logger.Warn("config decode failed", "key", key, "err", err)
+		vcd.logger.Warn("config decode failed", "key", key, "err", err)
 		return config.PreviewOptions{}, false
 	}
 	if opts == nil {
 		return config.PreviewOptions{}, false
 	}
-	return mapToPreviewOptions(opts, d.logger), true
+	return mapToPreviewOptions(opts, vcd.logger), true
 }
 
 // decodePort returns the port value for key, or (0, false) if the key is
 // absent, cannot be unmarshaled, or cannot be converted to a valid port number
 // by parsePort.
-func (d *vimConfigDecoder) decodePort(key string) (int, bool) {
-	v, ok := d.m[key]
+func (vcd *vimConfigDecoder) decodePort(key string) (int, bool) {
+	v, ok := vcd.m[key]
 	if !ok {
 		return 0, false
 	}
 	var port any
 	if err := json.Unmarshal(v, &port); err != nil {
-		d.logger.Warn("config decode failed", "key", key, "err", err)
+		vcd.logger.Warn("config decode failed", "key", key, "err", err)
 		return 0, false
 	}
 	return parsePort(port)
@@ -532,6 +532,14 @@ func (c *VimClient) sendRequest(makeMsg func(id int) []any) (json.RawMessage, er
 		removePending()
 		return nil, ErrEditorClosed
 	case <-timer.C:
+		// Like the c.done case above, a response may have arrived at
+		// the same instant the timer fired. Drain ch before declaring
+		// a timeout.
+		select {
+		case result := <-ch:
+			return result, nil
+		default:
+		}
 		removePending()
 		return nil, fmt.Errorf("request timed out after %s", requestTimeout)
 	}
@@ -542,12 +550,16 @@ func (c *VimClient) send(msg any) error {
 	// Marshal and newline-append outside the lock: both operate on a
 	// local slice and need no write serialization. The lock covers only
 	// the Write call to prevent interleaved output to c.writer.
-	data, err := json.Marshal(msg)
+	marshaled, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal message: %w", err)
 	}
-	// Vim expects newline-delimited JSON.
-	data = append(data, '\n')
+	// Vim expects newline-delimited JSON. Allocate a new slice rather
+	// than appending to the marshal output, which has no capacity
+	// guarantee from the standard library.
+	data := make([]byte, len(marshaled)+1)
+	copy(data, marshaled)
+	data[len(marshaled)] = '\n'
 
 	c.writerMu.Lock()
 	defer c.writerMu.Unlock()

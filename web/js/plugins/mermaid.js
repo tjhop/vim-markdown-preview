@@ -16,7 +16,10 @@
     // is reassigned on content refresh, data-rendered attributes are lost and
     // all diagrams appear unrendered. This cache restores previously rendered
     // SVG without calling mermaid.run(), avoiding flicker and ID collisions.
+    // Bounded to maxCacheSize entries to prevent unbounded memory growth
+    // in long editing sessions with many diagram iterations.
     var mermaidCache = {};
+    var maxCacheSize = 64;
 
     function mermaidPlugin(md) {
         var defaultFence = md.renderer.rules.fence ||
@@ -82,6 +85,14 @@
                 el.dataset.rendered = 'true';
                 mermaidCache[uncachedSources[i]] = el.innerHTML;
             });
+
+            // Evict oldest entries when cache exceeds maxCacheSize.
+            var keys = Object.keys(mermaidCache);
+            if (keys.length > maxCacheSize) {
+                keys.slice(0, keys.length - maxCacheSize).forEach(function (k) {
+                    delete mermaidCache[k];
+                });
+            }
         }).catch(function (err) {
             console.error('mermaid render error:', err);
             // Mark failed elements so they are not retried on every

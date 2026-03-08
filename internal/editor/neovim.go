@@ -255,7 +255,7 @@ func (c *NeovimClient) FetchBufferData(bufnr int) (*config.RefreshData, error) {
 		c.logger.Warn("winheight call failed, using zero", "bufnr", bufnr)
 	}
 	if failedIdx > bufIdxCursor {
-		data.Cursor = cursor[:]
+		data.Cursor = []int{cursor[0], cursor[1], cursor[2], cursor[3]}
 	} else {
 		c.logger.Warn("getpos call failed, using zero", "bufnr", bufnr)
 	}

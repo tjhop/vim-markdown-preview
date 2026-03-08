@@ -578,10 +578,15 @@ func TestHandleReloadEdgeCases(t *testing.T) {
 			contentType: "application/json",
 			body:        func() io.Reader { return strings.NewReader(`{invalid json}`) },
 		},
+		{
+			name:        "empty content field falls through to default",
+			contentType: "application/json",
+			body:        func() io.Reader { return strings.NewReader(`{"content":""}`) },
+		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			// Each subtest creates its own server to avoid sharing
 			// SetOnClientChange state across subtests, which would
 			// be racy if subtests ever ran in parallel.
@@ -607,7 +612,7 @@ func TestHandleReloadEdgeCases(t *testing.T) {
 				t.Fatal("timed out waiting for client registration")
 			}
 
-			resp, err := http.Post("http://"+addr+"/-/reload", tc.contentType, tc.body())
+			resp, err := http.Post("http://"+addr+"/-/reload", tt.contentType, tt.body())
 			if err != nil {
 				t.Fatalf("POST /-/reload failed: %v", err)
 			}
@@ -653,13 +658,13 @@ func TestHandleReloadEdgeCases(t *testing.T) {
 		})
 		addr := srv.Addr().String()
 
-		// Body is 2x maxReloadBodySize (2 MB vs 1 MB limit). The
-		// MaxBytesReader triggers http.MaxBytesError mid-stream,
-		// and the handler returns 413 Request Entity Too Large
-		// without broadcasting to any clients.
+		// Body is 2x MaxContentSize. The MaxBytesReader triggers
+		// http.MaxBytesError mid-stream, and the handler returns
+		// 413 Request Entity Too Large without broadcasting to
+		// any clients.
 		oversizedBody := io.MultiReader(
 			strings.NewReader(`{"content":"`),
-			bytes.NewReader(bytes.Repeat([]byte("a"), 2<<20)),
+			bytes.NewReader(bytes.Repeat([]byte("a"), int(MaxContentSize*2))),
 			strings.NewReader(`"}`),
 		)
 
@@ -851,7 +856,7 @@ func TestPageHandlerDifferentBuffers(t *testing.T) {
 		Name:    "buf2.md",
 	})
 
-	for _, tc := range []struct {
+	tests := []struct {
 		bufnr        string
 		expectedName string
 		hasData      bool
@@ -859,16 +864,18 @@ func TestPageHandlerDifferentBuffers(t *testing.T) {
 		{"1", "buf1.md", true},
 		{"2", "buf2.md", true},
 		{"3", "", false}, // No cached content for buffer 3.
-	} {
-		t.Run("buffer_"+tc.bufnr, func(t *testing.T) {
-			resp, err := http.Get("http://" + addr + "/page/" + tc.bufnr)
+	}
+
+	for _, tt := range tests {
+		t.Run("buffer_"+tt.bufnr, func(t *testing.T) {
+			resp, err := http.Get("http://" + addr + "/page/" + tt.bufnr)
 			if err != nil {
-				t.Fatalf("GET /page/%s failed: %v", tc.bufnr, err)
+				t.Fatalf("GET /page/%s failed: %v", tt.bufnr, err)
 			}
 			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("buffer %s: expected status 200, got %d", tc.bufnr, resp.StatusCode)
+				t.Fatalf("buffer %s: expected status 200, got %d", tt.bufnr, resp.StatusCode)
 			}
 
 			body, err := io.ReadAll(resp.Body)
@@ -879,22 +886,22 @@ func TestPageHandlerDifferentBuffers(t *testing.T) {
 			bodyStr := string(body)
 			hasInitialData := strings.Contains(bodyStr, `id="initial-data"`)
 
-			if tc.hasData && !hasInitialData {
-				t.Errorf("buffer %s: expected initial-data element", tc.bufnr)
+			if tt.hasData && !hasInitialData {
+				t.Errorf("buffer %s: expected initial-data element", tt.bufnr)
 			}
-			if !tc.hasData && hasInitialData {
-				t.Errorf("buffer %s: expected no initial-data element", tc.bufnr)
+			if !tt.hasData && hasInitialData {
+				t.Errorf("buffer %s: expected no initial-data element", tt.bufnr)
 			}
 
-			if tc.hasData {
+			if tt.hasData {
 				// Extract and verify the name in the payload.
 				decoded := decodePagePayload(t, bodyStr)
 				var msg refreshMessage
 				if err := json.Unmarshal(decoded, &msg); err != nil {
-					t.Fatalf("buffer %s: unmarshal error: %v", tc.bufnr, err)
+					t.Fatalf("buffer %s: unmarshal error: %v", tt.bufnr, err)
 				}
-				if msg.Data.Name != tc.expectedName {
-					t.Errorf("buffer %s: expected name %q, got %q", tc.bufnr, tc.expectedName, msg.Data.Name)
+				if msg.Data.Name != tt.expectedName {
+					t.Errorf("buffer %s: expected name %q, got %q", tt.bufnr, tt.expectedName, msg.Data.Name)
 				}
 			}
 		})
@@ -905,29 +912,27 @@ func TestPageHandlerInvalidBufnr(t *testing.T) {
 	srv := startTestServer(t)
 	addr := srv.Addr().String()
 
-	// GET /page/abc -- invalid buffer number should still serve the page
-	// gracefully (no initial-data, skeleton shown).
-	resp, err := http.Get("http://" + addr + "/page/abc")
-	if err != nil {
-		t.Fatalf("GET /page/abc failed: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status 200 for invalid bufnr, got %d", resp.StatusCode)
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "non-numeric", path: "/page/abc"},
+		{name: "zero", path: "/page/0"},
+		{name: "negative", path: "/page/-1"},
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("failed to read response body: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := http.Get("http://" + addr + tt.path)
+			if err != nil {
+				t.Fatalf("GET %s failed: %v", tt.path, err)
+			}
+			defer func() { _ = resp.Body.Close() }()
 
-	bodyStr := string(body)
-	if strings.Contains(bodyStr, `id="initial-data"`) {
-		t.Error("expected no initial-data element for invalid bufnr")
-	}
-	if !strings.Contains(bodyStr, "Markdown Preview") {
-		t.Error("response body does not contain expected title")
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Errorf("expected status 400 for invalid bufnr %s, got %d", tt.path, resp.StatusCode)
+			}
+		})
 	}
 }
 
