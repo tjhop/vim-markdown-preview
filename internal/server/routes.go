@@ -49,6 +49,11 @@ const contentSecurityPolicy = "default-src 'self'; " +
 	"form-action 'none'; " +
 	"frame-ancestors 'none'"
 
+// cacheControlImmutable is the Cache-Control value for embedded static assets.
+// Embedded assets are compiled into the binary and never change during its
+// lifetime, making them safe to cache indefinitely.
+const cacheControlImmutable = "public, max-age=31536000, immutable"
+
 // setSecurityHeaders applies defense-in-depth HTTP headers to responses
 // that serve file content (custom CSS, local images). These complement
 // the headers set on the page handler. Referrer-Policy prevents the
@@ -147,6 +152,7 @@ func (s *Server) handleStatic() http.Handler {
 	fileServer := http.FileServer(http.FS(web.Assets))
 	return http.StripPrefix("/_static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setSecurityHeaders(w)
+		w.Header().Set("Cache-Control", cacheControlImmutable)
 		fileServer.ServeHTTP(w, r)
 	}))
 }
@@ -202,6 +208,7 @@ func (s *Server) handleCustomCSS(label, customPath, fallbackPath string) http.Ha
 			http.Error(w, "CSS not found", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Cache-Control", cacheControlImmutable)
 		_, _ = w.Write(fallbackData)
 	})
 }
