@@ -328,6 +328,12 @@
                 if (window.renderSequenceDiagrams) window.renderSequenceDiagrams(opts.sequence_diagrams || {});
                 if (window.renderFlowcharts) window.renderFlowcharts(opts.flowchart_diagrams || {});
                 if (window.renderDot) window.renderDot();
+
+                // Invalidate the scroll plugin's cached element list so the
+                // next scrollToLine call rebuilds from the fresh DOM.
+                if (window.invalidateLineElementCache) {
+                    window.invalidateLineElementCache();
+                }
             }
         }
 
