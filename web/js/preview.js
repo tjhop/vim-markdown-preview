@@ -19,6 +19,48 @@
     var maxReconnectAttempts = 20;
     var reconnectAttempts = 0;
 
+    // Theme toggle support.
+    // When the user manually toggles, this flag prevents incoming editor
+    // theme data from overriding their choice.
+    window._userThemeOverride = false;
+
+    // Update the toggle button label to reflect what clicking it will do.
+    function updateToggleLabel() {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var current = document.documentElement.dataset.theme ||
+            (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (current === 'dark') {
+            btn.textContent = '\u2600 Light';
+            btn.setAttribute('aria-label', 'Switch to light theme');
+        } else {
+            btn.textContent = '\u263D Dark';
+            btn.setAttribute('aria-label', 'Switch to dark theme');
+        }
+    }
+
+    // Restore saved theme preference from localStorage.
+    var savedTheme = localStorage.getItem('mkdp-theme');
+    if (savedTheme) {
+        document.documentElement.dataset.theme = savedTheme;
+        window._userThemeOverride = true;
+    }
+    updateToggleLabel();
+
+    // Bind the toggle button click handler.
+    var toggleBtn = document.getElementById('theme-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+            var current = document.documentElement.dataset.theme ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            localStorage.setItem('mkdp-theme', next);
+            window._userThemeOverride = true;
+            updateToggleLabel();
+        });
+    }
+
     // createBanner creates a fixed top banner with standard error styles.
     // text is the message to display; id is an optional element ID used by
     // callers that guard against duplicate insertion via getElementById.
@@ -235,10 +277,10 @@
             initMarkdownIt(opts);
         }
 
-        // Apply theme.
-        var main = document.querySelector('main');
-        if (main && data.theme) {
-            main.dataset.theme = data.theme;
+        // Apply theme from editor, unless the user manually toggled.
+        if (data.theme && !window._userThemeOverride) {
+            document.documentElement.dataset.theme = data.theme;
+            updateToggleLabel();
         }
 
         // Update page title and filename header.
