@@ -188,7 +188,11 @@ func (cm *clientManager) broadcastAll(timeout time.Duration, msg wsMessage) (evi
 
 	// Snapshot all clients under read lock, then release before writing.
 	cm.mu.RLock()
-	var targets []clientTarget
+	var total int
+	for _, clients := range cm.clients {
+		total += len(clients)
+	}
+	targets := make([]clientTarget, 0, total)
 	for bufnr, clients := range cm.clients {
 		for _, c := range clients {
 			targets = append(targets, clientTarget{client: c, bufnr: bufnr})
