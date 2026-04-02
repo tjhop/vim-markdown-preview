@@ -30,6 +30,12 @@ const writeTimeout = 5 * time.Second
 // are individually wrapped with http.TimeoutHandler instead.
 const httpHandlerTimeout = 30 * time.Second
 
+// maxBufnr caps the buffer number accepted from HTTP and WebSocket
+// handlers. Vim buffer numbers are monotonically increasing ints; this
+// generous upper bound prevents unbounded map growth from malicious
+// clients when OpenToTheWorld is enabled.
+const maxBufnr = 1 << 20 // 1,048,576
+
 // clientChangeChanCapacity is the buffer capacity for the clientChangeCh channel.
 // The buffer absorbs bursts of rapid connect/disconnect events (e.g. a page
 // reload) without blocking fireClientChange callers. 16 is generous headroom

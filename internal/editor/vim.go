@@ -330,14 +330,14 @@ type vimConfigDecoder struct {
 
 // decodeInt returns the integer value for key, or (0, false) if the key is
 // absent or cannot be unmarshaled as an int.
-func (vcd *vimConfigDecoder) decodeInt(key string) (int, bool) {
-	v, ok := vcd.m[key]
+func (d *vimConfigDecoder) decodeInt(key string) (int, bool) {
+	v, ok := d.m[key]
 	if !ok {
 		return 0, false
 	}
 	var n int
 	if err := json.Unmarshal(v, &n); err != nil {
-		vcd.logger.Warn("config decode failed", "key", key, "err", err)
+		d.logger.Warn("config decode failed", "key", key, "err", err)
 		return 0, false
 	}
 	return n, true
@@ -345,14 +345,14 @@ func (vcd *vimConfigDecoder) decodeInt(key string) (int, bool) {
 
 // decodeStr returns the string value for key, or ("", false) if the key is
 // absent or cannot be unmarshaled as a string.
-func (vcd *vimConfigDecoder) decodeStr(key string) (string, bool) {
-	v, ok := vcd.m[key]
+func (d *vimConfigDecoder) decodeStr(key string) (string, bool) {
+	v, ok := d.m[key]
 	if !ok {
 		return "", false
 	}
 	var s string
 	if err := json.Unmarshal(v, &s); err != nil {
-		vcd.logger.Warn("config decode failed", "key", key, "err", err)
+		d.logger.Warn("config decode failed", "key", key, "err", err)
 		return "", false
 	}
 	return s, true
@@ -361,33 +361,33 @@ func (vcd *vimConfigDecoder) decodeStr(key string) (string, bool) {
 // decodePreviewOptions returns parsed PreviewOptions for key, or
 // (PreviewOptions{}, false) if the key is absent, decodes to nil, or cannot
 // be unmarshaled as a JSON object.
-func (vcd *vimConfigDecoder) decodePreviewOptions(key string) (config.PreviewOptions, bool) {
-	v, ok := vcd.m[key]
+func (d *vimConfigDecoder) decodePreviewOptions(key string) (config.PreviewOptions, bool) {
+	v, ok := d.m[key]
 	if !ok {
 		return config.PreviewOptions{}, false
 	}
 	var opts map[string]any
 	if err := json.Unmarshal(v, &opts); err != nil {
-		vcd.logger.Warn("config decode failed", "key", key, "err", err)
+		d.logger.Warn("config decode failed", "key", key, "err", err)
 		return config.PreviewOptions{}, false
 	}
 	if opts == nil {
 		return config.PreviewOptions{}, false
 	}
-	return mapToPreviewOptions(opts, vcd.logger), true
+	return mapToPreviewOptions(opts, d.logger), true
 }
 
 // decodePort returns the port value for key, or (0, false) if the key is
 // absent, cannot be unmarshaled, or cannot be converted to a valid port number
 // by parsePort.
-func (vcd *vimConfigDecoder) decodePort(key string) (int, bool) {
-	v, ok := vcd.m[key]
+func (d *vimConfigDecoder) decodePort(key string) (int, bool) {
+	v, ok := d.m[key]
 	if !ok {
 		return 0, false
 	}
 	var port any
 	if err := json.Unmarshal(v, &port); err != nil {
-		vcd.logger.Warn("config decode failed", "key", key, "err", err)
+		d.logger.Warn("config decode failed", "key", key, "err", err)
 		return 0, false
 	}
 	return parsePort(port)

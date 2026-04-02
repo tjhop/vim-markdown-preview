@@ -15,12 +15,6 @@ import (
 	"github.com/coder/websocket"
 )
 
-// maxBufnr caps the buffer number accepted from WebSocket query parameters.
-// Vim buffer numbers are monotonically increasing ints; this generous upper
-// bound prevents unbounded map growth from malicious clients when
-// OpenToTheWorld is enabled.
-const maxBufnr = 1 << 20 // 1,048,576
-
 // wsClient represents a connected WebSocket browser client.
 type wsClient struct {
 	mu    sync.Mutex // defense-in-depth write serialization (coder/websocket internally serializes)

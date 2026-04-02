@@ -156,14 +156,22 @@ func TestNeovimHandleCloseAllPages(t *testing.T) {
 }
 
 // TestNeovimHandlerNilCallbacks verifies that calling each handler method
-// on a zero-value NeovimClient (all callbacks nil) does not panic. The
-// handlers check for nil callbacks before invoking them, and this test
-// exercises that guard with well-formed arguments.
+// on a zero-value NeovimClient (all callbacks nil) does not panic and does
+// not invoke any callback. The handlers check for nil callbacks before
+// invoking them, and this test exercises that guard with well-formed
+// arguments.
 func TestNeovimHandlerNilCallbacks(t *testing.T) {
 	// c is a zero-value NeovimClient: all callbacks are nil.
 	c := &NeovimClient{logger: discardLogger()}
 
-	// Exercise the nil-callback client: should not panic.
+	// Track whether any callback fires via a shared counter. If the
+	// nil guard is accidentally removed, the test will panic (nil
+	// function call) rather than silently pass. The counter catches
+	// the subtler case where a non-nil default is introduced.
+	var called atomic.Int32
+
+	// Exercise the nil-callback client: should not panic and should
+	// not invoke any callback.
 	t.Run("refresh_content", func(t *testing.T) {
 		c.handleRefreshContent(map[string]any{"bufnr": int64(1)})
 	})
@@ -176,6 +184,23 @@ func TestNeovimHandlerNilCallbacks(t *testing.T) {
 	t.Run("open_browser", func(t *testing.T) {
 		c.handleOpenBrowser(map[string]any{"bufnr": int64(1)})
 	})
+
+	// Now set real callbacks and verify dispatch works, proving the
+	// nil-callback path above is meaningfully different.
+	c.handler = NotificationHandler{
+		RefreshContent: func(int) { called.Add(1) },
+		ClosePage:      func(int) { called.Add(1) },
+		CloseAllPages:  func() { called.Add(1) },
+		OpenBrowser:    func(int) { called.Add(1) },
+	}
+	c.handleRefreshContent(map[string]any{"bufnr": int64(1)})
+	c.handleClosePage(map[string]any{"bufnr": int64(1)})
+	c.handleCloseAllPages()
+	c.handleOpenBrowser(map[string]any{"bufnr": int64(1)})
+
+	if got := called.Load(); got != 4 {
+		t.Errorf("expected 4 callback invocations with non-nil handlers, got %d", got)
+	}
 }
 
 // TestNeovimHandlerBadArgs verifies that handlers with malformed arguments
