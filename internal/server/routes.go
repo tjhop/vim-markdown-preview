@@ -350,6 +350,24 @@ func (s *Server) handleLocalImage() http.Handler {
 			}
 		}
 
+		// Reject directories to prevent http.ServeFile from generating
+		// directory listings (e.g., a symlink with an image extension
+		// pointing to a directory).
+		info, err := os.Stat(absPath)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				http.NotFound(w, r)
+				return
+			}
+			s.logger.Warn("stat failed for image", "path", absPath, "err", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if info.IsDir() {
+			http.NotFound(w, r)
+			return
+		}
+
 		setSecurityHeaders(w)
 
 		// SVG files can carry embedded scripts, load external resources via
