@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mime"
 	"net/http"
 	"os"
@@ -103,16 +104,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 func (s *Server) handlePage() http.Handler {
 	indexTemplate, err := web.Assets.ReadFile("index.html")
 	if err != nil {
-		s.logger.Error("failed to read embedded index.html", "err", err)
+		// Embedded asset read failure indicates a broken build -- fail
+		// fast rather than silently returning 500 on every request.
+		panic(fmt.Sprintf("embedded index.html missing: %v", err))
 	}
 	placeholder := []byte("<!-- INITIAL_DATA_PLACEHOLDER -->")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if indexTemplate == nil {
-			http.Error(w, "internal error: index.html missing", http.StatusInternalServerError)
-			return
-		}
-
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		setSecurityHeaders(w)
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
